@@ -10,6 +10,9 @@ const resultItems = document.getElementById('resultItems');
 const resultNote = document.getElementById('resultNote');
 const autoWeatherBtn = document.getElementById('autoWeatherBtn');
 const weatherStatus = document.getElementById('weatherStatus');
+const heroLookCard = document.getElementById('heroLookCard');
+const heroTemp = document.getElementById('heroTemp');
+const heroMatch = document.getElementById('heroMatch');
 
 const colorMap = {
   tangerine: { hex: '#eb7d00', name: 'Оранжевый' },
@@ -224,4 +227,66 @@ genBtn.addEventListener('click', () => {
   resultBox.classList.add('show');
 });
 
+// Затемняем hex на заданную долю — для градиента карточки в hero-блоке.
+function darken(hex, amount) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = Math.max(0, (n >> 16) - Math.round(255 * amount));
+  const g = Math.max(0, ((n >> 8) & 0xff) - Math.round(255 * amount));
+  const b = Math.max(0, (n & 0xff) - Math.round(255 * amount));
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+function renderHeroLook(items, tempC, score) {
+  const rows = [];
+  for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
+
+  heroLookCard.innerHTML = rows.map(row => `
+    <div class="look-row${row.length === 1 ? ' single' : ''}">
+      ${row.map(item => {
+        const isLight = OutfitLogic.hexToHsl(item.hex).l > 0.6;
+        const textColor = isLight ? '#141009' : 'rgba(255,255,255,.75)';
+        return `<div class="swatch" style="background:linear-gradient(160deg,${item.hex},${darken(item.hex, 0.18)}); color:${textColor};">${item.label}</div>`;
+      }).join('')}
+    </div>
+  `).join('');
+
+  heroTemp.textContent = `${tempC >= 0 ? '+' : ''}${Math.round(tempC)}°`;
+  heroMatch.textContent = `${Math.round(score * 100)}%`;
+}
+
+// Автообновление карточки "Сегодняшний лук" в hero — только для вернувшихся
+// посетителей: нужен сохранённый гардероб (localStorage) и УЖЕ выданное
+// ранее разрешение на геолокацию. Разрешение мы сами не запрашиваем —
+// это было бы навязчиво для человека, который зашёл впервые.
+async function tryAutoHeroLook() {
+  if (wardrobe.length < 2) return;
+  if (!navigator.permissions || !navigator.geolocation) return;
+
+  let permissionState;
+  try {
+    permissionState = (await navigator.permissions.query({ name: 'geolocation' })).state;
+  } catch (e) {
+    return; // Permissions API недоступен в этом браузере — оставляем статичный пример
+  }
+  if (permissionState !== 'granted') return;
+
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    try {
+      const { latitude, longitude } = pos.coords;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`;
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      const tempC = data.current.temperature_2m;
+      const weather = weatherBucket(tempC);
+      const occasion = document.querySelector('#occasionPicker .active').dataset.occ;
+
+      const result = OutfitLogic.pickBestOutfit(wardrobe, { weather, occasion });
+      if (!result) return;
+      renderHeroLook(result.items, tempC, result.score);
+    } catch (e) { /* тихо оставляем статичный пример */ }
+  }, () => { /* доступ отозван между визитами — оставляем статичный пример */ }, { timeout: 8000 });
+}
+
 renderWardrobe();
+tryAutoHeroLook();
