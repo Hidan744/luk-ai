@@ -18,6 +18,54 @@ const wardrobeAnalysis = document.getElementById('wardrobeAnalysis');
 const uploadTypePicker = document.getElementById('uploadTypePicker');
 const resultAdvice = document.getElementById('resultAdvice');
 const resultAlternatives = document.getElementById('resultAlternatives');
+const uploadAiNote = document.getElementById('uploadAiNote');
+const aiWardrobeBtn = document.getElementById('aiWardrobeBtn');
+const aiWardrobeResult = document.getElementById('aiWardrobeResult');
+
+// Реальный ИИ-анализ фото и гардероба — опционально, через свой backend
+// (server/ai.js + Claude vision), т.к. ключ API нельзя держать в браузере.
+// По умолчанию выключено (пустая строка): просто открой index.html — и
+// сайт работает как раньше, на локальном определении цвета по фото.
+// Впиши сюда адрес своего запущенного backend'а (см. server/README про
+// ANTHROPIC_API_KEY), чтобы включить: например 'http://localhost:3001'.
+const AI_BACKEND_URL = '';
+let aiAvailable = false;
+
+async function checkAiAvailable() {
+  if (!AI_BACKEND_URL) return;
+  try {
+    const res = await fetch(`${AI_BACKEND_URL}/api/vision/status`);
+    const data = await res.json();
+    aiAvailable = Boolean(data.available);
+  } catch (e) {
+    aiAvailable = false;
+  }
+  aiWardrobeBtn.hidden = !aiAvailable || wardrobe.length < 2;
+}
+
+async function tryAiAnalyzeItem(file) {
+  if (!aiAvailable) return null;
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
+    if (!match) return null;
+    const [, mediaType, base64] = match;
+    const res = await fetch(`${AI_BACKEND_URL}/api/vision/analyze-item`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: base64, mediaType })
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
 
 const colorMap = {
   tangerine: { hex: '#eb7d00', name: 'Оранжевый' },
@@ -84,6 +132,8 @@ function renderWardrobe() {
   }
   renderWardrobeAnalysis();
   renderShoppingSuggest();
+  aiWardrobeBtn.hidden = !aiAvailable || wardrobe.length < 2;
+  aiWardrobeResult.innerHTML = '';
 }
 
 const findingIcon = { warn: '⚠️', tip: '💡', ok: '✅', info: 'ℹ️' };
@@ -183,12 +233,29 @@ fileInput.addEventListener('change', () => {
   const file = fileInput.files[0];
   if (!file) return;
   const url = URL.createObjectURL(file);
+  uploadAiNote.textContent = '';
 
   const img = new Image();
-  img.onload = () => {
+  img.onload = async () => {
     pendingUpload = { hex: extractDominantColor(img), img: url, label: file.name };
     uploadTypePicker.hidden = false;
     uploadTypePicker.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Реальный ИИ-анализ (если подключен backend с ключом) — уточняет цвет
+    // и подсвечивает вероятный тип вещи; выбор всё равно за пользователем.
+    if (aiAvailable) {
+      uploadAiNote.textContent = '🤖 ИИ анализирует фото…';
+      const ai = await tryAiAnalyzeItem(file);
+      if (pendingUpload && ai) {
+        pendingUpload.hex = ai.colorHex || pendingUpload.hex;
+        uploadTypePicker.querySelectorAll('.tag-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.type === ai.type);
+        });
+        uploadAiNote.textContent = `🤖 ИИ: ${ai.colorName}. ${ai.notes}`;
+      } else if (pendingUpload) {
+        uploadAiNote.textContent = '';
+      }
+    }
   };
   img.onerror = () => {
     pendingUpload = { hex: '#888888', img: url, label: file.name };
@@ -205,6 +272,7 @@ uploadTypePicker.addEventListener('click', (e) => {
   addItem({ type: btn.dataset.type, hex: pendingUpload.hex, label: pendingUpload.label, img: pendingUpload.img });
   pendingUpload = null;
   uploadTypePicker.hidden = true;
+  uploadAiNote.textContent = '';
 });
 
 // Уменьшаем фото на маленький canvas и берём средний цвет по пикселям —
@@ -537,5 +605,32 @@ window.addEventListener('resize', () => {
   window.__marqueeResizeTimer = setTimeout(setupMarquee, 200);
 });
 
+aiWardrobeBtn.addEventListener('click', async () => {
+  aiWardrobeBtn.disabled = true;
+  const originalLabel = aiWardrobeBtn.textContent;
+  aiWardrobeBtn.textContent = 'Спрашиваю ИИ…';
+  try {
+    const res = await fetch(`${AI_BACKEND_URL}/api/vision/analyze-wardrobe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: wardrobe.map(({ img, ...rest }) => rest) })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'ошибка');
+
+    aiWardrobeResult.innerHTML = `
+      <div class="analysis-finding tip"><span>🤖</span><span>${data.summary}</span></div>
+      ${data.findings.map(f => `<div class="analysis-finding tip"><span>💡</span><span>${f}</span></div>`).join('')}
+      ${data.recommendations.map(r => `<div class="analysis-finding warn"><span>🛍️</span><span>${r}</span></div>`).join('')}
+    `;
+  } catch (e) {
+    aiWardrobeResult.innerHTML = `<div class="analysis-finding warn"><span>⚠️</span><span>Не удалось получить ответ от ИИ-стилиста. Попробуй ещё раз.</span></div>`;
+  } finally {
+    aiWardrobeBtn.disabled = false;
+    aiWardrobeBtn.textContent = originalLabel;
+  }
+});
+
 renderWardrobe();
 initHeroWeather();
+checkAiAvailable().then(() => { aiWardrobeBtn.hidden = !aiAvailable || wardrobe.length < 2; });

@@ -2,9 +2,10 @@ const express = require('express');
 const path = require('node:path');
 const { getWardrobe, addWardrobeItem, deleteWardrobeItem, ensureUser, setSubscription, db } = require('./db');
 const OutfitLogic = require('../shared/outfit-logic');
+const ai = require('./ai');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // фото в base64 крупнее дефолтного лимита 100kb
 
 // Демо-CORS — открыт для всех источников, чтобы статический фронтенд
 // (например, на GitHub Pages) мог обращаться к серверу напрямую.
@@ -60,6 +61,44 @@ app.post('/api/outfit', (req, res) => {
   const result = OutfitLogic.pickBestOutfit(wardrobe, { weather, occasion });
   if (!result) return res.status(200).json({ pick: null, message: 'Недостаточно вещей в гардеробе' });
   res.json({ pick: result.items, score: result.score });
+});
+
+// --- ИИ-анализ фото и гардероба ---------------------------------------
+// Реальные вызовы Claude (vision + структурированный JSON). Требует
+// ANTHROPIC_API_KEY в окружении сервера — без него отвечаем { available:
+// false }, и фронтенд сам тихо откатывается на определение цвета через
+// canvas, ничего не ломая для тех, кто ИИ не подключал.
+
+app.get('/api/vision/status', (req, res) => {
+  res.json({ available: ai.isAvailable() });
+});
+
+app.post('/api/vision/analyze-item', async (req, res) => {
+  if (!ai.isAvailable()) return res.status(503).json({ available: false, error: 'ANTHROPIC_API_KEY не задан на сервере' });
+  const { imageBase64, mediaType } = req.body;
+  if (!imageBase64 || !mediaType) return res.status(400).json({ error: 'imageBase64 и mediaType обязательны' });
+  try {
+    const result = await ai.analyzeClothingPhoto(imageBase64, mediaType);
+    res.json(result);
+  } catch (e) {
+    console.error('vision/analyze-item error:', e.message);
+    res.status(502).json({ error: 'Не удалось получить ответ от ИИ' });
+  }
+});
+
+app.post('/api/vision/analyze-wardrobe', async (req, res) => {
+  if (!ai.isAvailable()) return res.status(503).json({ available: false, error: 'ANTHROPIC_API_KEY не задан на сервере' });
+  const { items } = req.body;
+  if (!Array.isArray(items) || items.length < 2) {
+    return res.status(400).json({ error: 'нужно минимум 2 вещи для анализа' });
+  }
+  try {
+    const result = await ai.analyzeWardrobeStyle(items);
+    res.json(result);
+  } catch (e) {
+    console.error('vision/analyze-wardrobe error:', e.message);
+    res.status(502).json({ error: 'Не удалось получить ответ от ИИ' });
+  }
 });
 
 // --- Подписка / оплата -----------------------------------------------
