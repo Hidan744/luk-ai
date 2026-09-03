@@ -155,7 +155,7 @@
   @media (max-width:860px){.demo-grid{grid-template-columns:1fr;}}
   .demo-col h3{font-family:'Unbounded'; font-size:18px; margin-bottom:18px; font-weight:600;}
   .upload-zone{
-    border:2px dashed var(--line); border-radius:16px; padding:28px; text-align:center;
+    border:1px solid var(--line); border-radius:16px; padding:28px; text-align:center;
     cursor:pointer; transition:border-color .2s, background .2s; margin-bottom:18px;
   }
   .upload-zone:hover{border-color:var(--accent); background:rgba(235,125,0,0.03);}
