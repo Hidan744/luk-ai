@@ -263,6 +263,10 @@ function darken(hex, amount) {
   return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
 }
 
+function setHeroTemp(tempC) {
+  heroTemp.textContent = `${tempC >= 0 ? '+' : ''}${Math.round(tempC)}°`;
+}
+
 function renderHeroLook(items, tempC, score) {
   const rows = [];
   for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
@@ -277,7 +281,7 @@ function renderHeroLook(items, tempC, score) {
     </div>
   `).join('');
 
-  heroTemp.textContent = `${tempC >= 0 ? '+' : ''}${Math.round(tempC)}°`;
+  setHeroTemp(tempC);
   heroMatch.textContent = `${Math.round(score * 100)}%`;
 }
 
@@ -289,61 +293,95 @@ async function fetchTemperature(latitude, longitude) {
   return data.current.temperature_2m;
 }
 
-// Пересобирает hero-лук под новую температуру и синхронизирует кнопку
-// погоды в демке, чтобы всё на странице отражало один и тот же расчёт.
+// Температуру в hero обновляем всегда, как только известна погода.
+// Сами свотчи (реальный лук вместо иллюстративного примера) пересобираем,
+// только если в гардеробе достаточно вещей — иначе считать не из чего,
+// но цифра температуры всё равно должна быть настоящей, а не примером.
 function updateHeroForTemp(tempC) {
   const weather = weatherBucket(tempC);
-  const occasion = document.querySelector('#occasionPicker .active').dataset.occ;
-  const result = OutfitLogic.pickBestOutfit(wardrobe, { weather, occasion });
-  if (!result) return false;
-  renderHeroLook(result.items, tempC, result.score);
   document.querySelectorAll('#weatherPicker .tag-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.weather === weather);
   });
+
+  if (wardrobe.length < 2) {
+    setHeroTemp(tempC);
+    return false;
+  }
+  const occasion = document.querySelector('#occasionPicker .active').dataset.occ;
+  const result = OutfitLogic.pickBestOutfit(wardrobe, { weather, occasion });
+  if (!result) {
+    setHeroTemp(tempC);
+    return false;
+  }
+  renderHeroLook(result.items, tempC, result.score);
   return true;
 }
 
 const HERO_POLL_INTERVAL_MS = 10 * 60 * 1000; // раз в 10 минут — чаще реальная погода и не меняется
 const HERO_TEMP_CHANGE_THRESHOLD = 3; // °C — при таком сдвиге пересобираем лук
 
-// Автообновление карточки "Сегодняшний лук" в hero — только для вернувшихся
-// посетителей: нужен сохранённый гардероб (localStorage) и УЖЕ выданное
-// ранее разрешение на геолокацию. Разрешение мы сами не запрашиваем —
-// это было бы навязчиво для человека, который зашёл впервые. Пока страница
-// открыта, раз в HERO_POLL_INTERVAL_MS проверяем погоду ещё раз и
-// пересобираем лук, если температура сдвинулась на HERO_TEMP_CHANGE_THRESHOLD
-// градусов и больше — так лук "живёт" вместе с погодой за окном.
-async function tryAutoHeroLook() {
-  if (wardrobe.length < 2) return;
-  if (!navigator.permissions || !navigator.geolocation) return;
-
-  let permissionState;
-  try {
-    permissionState = (await navigator.permissions.query({ name: 'geolocation' })).state;
-  } catch (e) {
-    return; // Permissions API недоступен в этом браузере — оставляем статичный пример
-  }
-  if (permissionState !== 'granted') return;
+// Сайт сам спрашивает геолокацию при заходе (браузер покажет свой стандартный
+// запрос доступа), чтобы hero сразу показывал настоящую температуру вместо
+// иллюстративного примера "+18°". Если гардероб уже достаточно большой —
+// заодно пересобирается и сам лук. Пока страница открыта, погода
+// перепроверяется раз в HERO_POLL_INTERVAL_MS, и лук пересобирается заново,
+// если температура сдвинулась на HERO_TEMP_CHANGE_THRESHOLD градусов и больше.
+function initHeroWeather() {
+  if (!navigator.geolocation) return;
 
   navigator.geolocation.getCurrentPosition((pos) => {
     const { latitude, longitude } = pos.coords;
     let lastTemp = null;
 
     fetchTemperature(latitude, longitude)
-      .then(tempC => { if (updateHeroForTemp(tempC)) lastTemp = tempC; })
-      .catch(() => { /* тихо оставляем статичный пример */ });
+      .then(tempC => { updateHeroForTemp(tempC); lastTemp = tempC; })
+      .catch(() => { /* не удалось получить погоду — оставляем статичный пример */ });
 
     setInterval(() => {
       fetchTemperature(latitude, longitude)
         .then(tempC => {
           if (lastTemp === null || Math.abs(tempC - lastTemp) >= HERO_TEMP_CHANGE_THRESHOLD) {
-            if (updateHeroForTemp(tempC)) lastTemp = tempC;
+            updateHeroForTemp(tempC);
+            lastTemp = tempC;
           }
         })
         .catch(() => { /* попробуем на следующем тике */ });
     }, HERO_POLL_INTERVAL_MS);
-  }, () => { /* доступ отозван между визитами — оставляем статичный пример */ }, { timeout: 8000 });
+  }, () => { /* доступ к геолокации не дан — оставляем статичный пример */ }, { timeout: 8000 });
 }
 
+// Бегущая строка должна быть бесшовной на любой ширине экрана. В разметке
+// лежит одна группа фраз; здесь она измеряется и повторяется столько раз,
+// чтобы половина дорожки была шире контейнера — тогда стык между повторами
+// никогда не попадает в видимую область. Скорость (px/сек) не зависит от
+// того, сколько раз пришлось повторить, поэтому бег выглядит одинаково
+// что на телефоне, что на широком мониторе.
+function setupMarquee() {
+  const wrap = document.querySelector('.marquee');
+  const track = document.querySelector('.marquee-track');
+  if (!wrap || !track) return;
+
+  const items = Array.from(track.querySelectorAll('span')).map(s => s.textContent);
+  const uniqueCount = new Set(items).size || items.length;
+  const groupHTML = items.slice(0, uniqueCount).map(t => `<span>${t}</span>`).join('');
+
+  track.innerHTML = groupHTML;
+  const groupWidth = track.scrollWidth || 1;
+  const containerWidth = wrap.clientWidth || 1;
+  const repeats = Math.max(2, Math.ceil((containerWidth * 1.3) / groupWidth));
+
+  const halfHTML = groupHTML.repeat(repeats);
+  track.innerHTML = halfHTML + halfHTML;
+
+  const halfWidth = track.scrollWidth / 2;
+  const PX_PER_SECOND = 50;
+  track.style.animationDuration = `${(halfWidth / PX_PER_SECOND).toFixed(1)}s`;
+}
+setupMarquee();
+window.addEventListener('resize', () => {
+  clearTimeout(window.__marqueeResizeTimer);
+  window.__marqueeResizeTimer = setTimeout(setupMarquee, 200);
+});
+
 renderWardrobe();
-tryAutoHeroLook();
+initHeroWeather();
