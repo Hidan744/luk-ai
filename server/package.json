@@ -1,0 +1,13 @@
+{
+  "name": "luk-ai-server",
+  "version": "1.0.0",
+  "description": "ЛУК.AI backend: API гардероба + подписки",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --experimental-sqlite server.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}

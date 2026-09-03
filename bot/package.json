@@ -1,0 +1,14 @@
+{
+  "name": "luk-ai-bot",
+  "version": "1.0.0",
+  "description": "ЛУК.AI Telegram-бот на общей логике подбора образа",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node --experimental-sqlite bot.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "jimp": "^1.6.1",
+    "node-telegram-bot-api": "^2.1.0"
+  }
+}
