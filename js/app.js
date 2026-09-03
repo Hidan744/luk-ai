@@ -14,6 +14,8 @@ const heroLookCard = document.getElementById('heroLookCard');
 const heroTemp = document.getElementById('heroTemp');
 const heroMatch = document.getElementById('heroMatch');
 const shoppingSuggest = document.getElementById('shoppingSuggest');
+const uploadTypePicker = document.getElementById('uploadTypePicker');
+const resultAdvice = document.getElementById('resultAdvice');
 
 const colorMap = {
   tangerine: { hex: '#eb7d00', name: 'Оранжевый' },
@@ -25,9 +27,26 @@ const colorMap = {
 const typeLabel = { top: 'Верх', bottom: 'Низ', outer: 'Верхняя одежда', shoes: 'Обувь' };
 const shopQuery = { top: 'свитер', bottom: 'джинсы', outer: 'куртка', shoes: 'кроссовки' };
 const marketplaces = [
-  { name: 'Wildberries', url: q => `https://www.wildberries.ru/catalog/0/search.aspx?search=${encodeURIComponent(q)}` },
-  { name: 'Ozon', url: q => `https://www.ozon.ru/search/?text=${encodeURIComponent(q)}` }
+  { id: 'wb', name: 'Wildberries', url: q => `https://www.wildberries.ru/catalog/0/search.aspx?search=${encodeURIComponent(q)}` },
+  { id: 'ozon', name: 'Ozon', url: q => `https://www.ozon.ru/search/?text=${encodeURIComponent(q)}` }
 ];
+const MARKETPLACE_PREF_KEY = 'luk-ai-marketplace-pref-v1';
+
+function loadMarketplacePref() {
+  try {
+    const raw = localStorage.getItem(MARKETPLACE_PREF_KEY);
+    const ids = raw ? JSON.parse(raw) : null;
+    return Array.isArray(ids) && ids.length ? ids : marketplaces.map(m => m.id);
+  } catch (e) {
+    return marketplaces.map(m => m.id);
+  }
+}
+
+let marketplacePref = loadMarketplacePref();
+
+function saveMarketplacePref() {
+  try { localStorage.setItem(MARKETPLACE_PREF_KEY, JSON.stringify(marketplacePref)); } catch (e) { /* нет доступа к localStorage */ }
+}
 
 function loadWardrobe() {
   try {
@@ -73,16 +92,39 @@ function renderShoppingSuggest() {
     shoppingSuggest.innerHTML = '';
     return;
   }
+  const activeMarketplaces = marketplaces.filter(m => marketplacePref.includes(m.id));
+  const shownMarketplaces = activeMarketplaces.length ? activeMarketplaces : marketplaces;
+
   shoppingSuggest.innerHTML = `
     <div class="shopping-suggest-title">Чего не хватает в гардеробе</div>
+    <div class="shopping-pref">
+      <span>Где искать:</span>
+      ${marketplaces.map(m => `
+        <button class="pref-btn${marketplacePref.includes(m.id) ? ' active' : ''}" data-market="${m.id}">${m.name}</button>
+      `).join('')}
+    </div>
     ${missingTypes.map(type => `
       <div class="shopping-row">
         <span class="type-label">${typeLabel[type]}</span>
-        ${marketplaces.map(m => `<a class="shopping-link" href="${m.url(shopQuery[type])}" target="_blank" rel="noopener">${m.name} →</a>`).join('')}
+        ${shownMarketplaces.map(m => `<a class="shopping-link" href="${m.url(shopQuery[type])}" target="_blank" rel="noopener">${m.name} →</a>`).join('')}
       </div>
     `).join('')}
   `;
 }
+
+shoppingSuggest.addEventListener('click', (e) => {
+  const btn = e.target.closest('.pref-btn');
+  if (!btn) return;
+  const id = btn.dataset.market;
+  if (marketplacePref.includes(id)) {
+    // хотя бы один маркетплейс должен оставаться выбранным
+    if (marketplacePref.length > 1) marketplacePref = marketplacePref.filter(m => m !== id);
+  } else {
+    marketplacePref = [...marketplacePref, id];
+  }
+  saveMarketplacePref();
+  renderShoppingSuggest();
+});
 
 function addItem(item) {
   wardrobe.push(item);
@@ -103,24 +145,38 @@ quickAdd.addEventListener('click', (e) => {
 });
 
 uploadZone.addEventListener('click', (e) => { e.preventDefault(); fileInput.click(); });
+
+// Тип вещи раньше угадывался вслепую (по счётчику добавленных вещей) —
+// после загрузки фото спрашиваем пользователя явно, чтобы вещь попала
+// в правильную категорию (верх/низ/верхняя одежда/обувь).
+let pendingUpload = null;
+
 fileInput.addEventListener('change', () => {
   const file = fileInput.files[0];
   if (!file) return;
   const url = URL.createObjectURL(file);
-  const types = ['top', 'bottom', 'outer', 'shoes'];
-  const type = types[wardrobe.length % types.length];
 
   const img = new Image();
   img.onload = () => {
-    const hex = extractDominantColor(img);
-    addItem({ type, hex, label: file.name, img: url });
+    pendingUpload = { hex: extractDominantColor(img), img: url, label: file.name };
+    uploadTypePicker.hidden = false;
+    uploadTypePicker.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
   img.onerror = () => {
-    addItem({ type, hex: '#888888', label: file.name, img: url });
+    pendingUpload = { hex: '#888888', img: url, label: file.name };
+    uploadTypePicker.hidden = false;
   };
   img.src = url;
 
   fileInput.value = '';
+});
+
+uploadTypePicker.addEventListener('click', (e) => {
+  const btn = e.target.closest('.tag-btn');
+  if (!btn || !pendingUpload) return;
+  addItem({ type: btn.dataset.type, hex: pendingUpload.hex, label: pendingUpload.label, img: pendingUpload.img });
+  pendingUpload = null;
+  uploadTypePicker.hidden = true;
 });
 
 // Уменьшаем фото на маленький canvas и берём средний цвет по пикселям —
@@ -228,6 +284,7 @@ genBtn.addEventListener('click', () => {
     resultBox.classList.add('show');
     resultItems.innerHTML = '<div class="result-item"><span>Добавь хотя бы 2 вещи в гардероб, чтобы собрать лук 👕</span></div>';
     resultNote.textContent = '';
+    resultAdvice.hidden = true;
     return;
   }
 
@@ -251,6 +308,23 @@ genBtn.addEventListener('click', () => {
       : '';
 
   resultNote.textContent = `${occasionNotes[occasion]} ${weatherNotes[weather]}${matchNote}`;
+
+  // Совет: либо предлагаем конкретную замену, которая заметно улучшит
+  // сочетаемость, либо явно подтверждаем, что менять ничего не нужно.
+  if (result) {
+    const swap = OutfitLogic.suggestSwap(result.items, wardrobe, result.score);
+    if (swap) {
+      resultAdvice.className = 'result-advice suggest';
+      resultAdvice.innerHTML = `💡 <span>Совет: замени «${swap.fromLabel}» на «${swap.toLabel}» — сочетание станет лучше (${Math.round(swap.fromScore * 100)}% → ${Math.round(swap.toScore * 100)}%).</span>`;
+    } else {
+      resultAdvice.className = 'result-advice confirm';
+      resultAdvice.innerHTML = `✅ <span>Этот выбор хорош — можно ничего не менять.</span>`;
+    }
+    resultAdvice.hidden = false;
+  } else {
+    resultAdvice.hidden = true;
+  }
+
   resultBox.classList.add('show');
 });
 

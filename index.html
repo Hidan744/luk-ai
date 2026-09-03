@@ -110,6 +110,16 @@
             <input type="file" id="fileInput" accept="image/*">
           </label>
 
+          <div class="upload-type-picker" id="uploadTypePicker" hidden>
+            <p class="upload-type-picker-title">Фото загружено — что это за вещь?</p>
+            <div class="tag-picker">
+              <button class="tag-btn" data-type="top">Верх</button>
+              <button class="tag-btn" data-type="bottom">Низ</button>
+              <button class="tag-btn" data-type="outer">Верхняя одежда</button>
+              <button class="tag-btn" data-type="shoes">Обувь</button>
+            </div>
+          </div>
+
           <div class="tag-picker" id="quickAdd">
             <button class="tag-btn" data-type="top" data-color="tangerine">+ Свитер</button>
             <button class="tag-btn" data-type="top" data-color="vanilla">+ Рубашка</button>
@@ -148,6 +158,7 @@
             <div class="result-title">ГОТОВЫЙ ЛУК</div>
             <div class="result-items" id="resultItems"></div>
             <p class="result-note" id="resultNote"></p>
+            <div class="result-advice" id="resultAdvice" hidden></div>
           </div>
         </div>
       </div>

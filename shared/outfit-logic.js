@@ -102,5 +102,31 @@
     return chosen;
   }
 
-  return { hexToHsl, isNeutral, pairScore, outfitScore, pickBestOutfit };
+  /**
+   * Ищет замену одной вещи в собранном луке, которая заметно улучшила бы
+   * сочетаемость. items — уже выбранный лук (результат pickBestOutfit),
+   * wardrobe — весь гардероб (источник альтернатив по тому же типу).
+   * Возвращает { type, fromLabel, toLabel, fromScore, toScore } либо null,
+   * если ничего заметно лучше не нашлось — тогда лук можно просто подтвердить.
+   */
+  function suggestSwap(items, wardrobe, currentScore) {
+    const IMPROVEMENT_THRESHOLD = 0.1;
+    let best = null;
+
+    items.forEach((item, idx) => {
+      const alternatives = wardrobe.filter(w => w.type === item.type && w !== item);
+      alternatives.forEach(alt => {
+        const trial = items.slice();
+        trial[idx] = alt;
+        const score = outfitScore(trial);
+        if (score > currentScore + IMPROVEMENT_THRESHOLD && (!best || score > best.toScore)) {
+          best = { type: item.type, fromLabel: item.label, toLabel: alt.label, fromScore: currentScore, toScore: score };
+        }
+      });
+    });
+
+    return best;
+  }
+
+  return { hexToHsl, isNeutral, pairScore, outfitScore, pickBestOutfit, suggestSwap };
 });
