@@ -13,6 +13,7 @@ const weatherStatus = document.getElementById('weatherStatus');
 const heroLookCard = document.getElementById('heroLookCard');
 const heroTemp = document.getElementById('heroTemp');
 const heroMatch = document.getElementById('heroMatch');
+const shoppingSuggest = document.getElementById('shoppingSuggest');
 
 const colorMap = {
   tangerine: { hex: '#eb7d00', name: 'Оранжевый' },
@@ -22,6 +23,11 @@ const colorMap = {
   rust: { hex: '#b8630a', name: 'Терракотовый' }
 };
 const typeLabel = { top: 'Верх', bottom: 'Низ', outer: 'Верхняя одежда', shoes: 'Обувь' };
+const shopQuery = { top: 'свитер', bottom: 'джинсы', outer: 'куртка', shoes: 'кроссовки' };
+const marketplaces = [
+  { name: 'Wildberries', url: q => `https://www.wildberries.ru/catalog/0/search.aspx?search=${encodeURIComponent(q)}` },
+  { name: 'Ozon', url: q => `https://www.ozon.ru/search/?text=${encodeURIComponent(q)}` }
+];
 
 function loadWardrobe() {
   try {
@@ -46,15 +52,36 @@ let wardrobe = loadWardrobe();
 function renderWardrobe() {
   if (wardrobe.length === 0) {
     wardrobeGrid.innerHTML = '<div class="wardrobe-empty">Гардероб пуст — добавь пару вещей выше</div>';
+  } else {
+    wardrobeGrid.innerHTML = wardrobe.map((item, i) => `
+      <div class="wardrobe-item" style="${item.img ? '' : `background:${item.hex}22; border-color:${item.hex}55;`}">
+        ${item.img ? `<img src="${item.img}" alt="${item.label}">` : `<span>${item.label}</span>`}
+        <div class="color-dot" style="background:${item.hex}" title="${item.label}"></div>
+        <div class="remove-x" data-i="${i}">✕</div>
+      </div>
+    `).join('');
+  }
+  renderShoppingSuggest();
+}
+
+// Настоящие рабочие ссылки на поиск по маркетплейсам (без партнёрского API,
+// живых цен и картинок — просто честная выдача по клику) для типов вещей,
+// которых в гардеробе нет вообще: это и есть "чего докупить".
+function renderShoppingSuggest() {
+  const missingTypes = Object.keys(typeLabel).filter(t => !wardrobe.some(i => i.type === t));
+  if (!missingTypes.length) {
+    shoppingSuggest.innerHTML = '';
     return;
   }
-  wardrobeGrid.innerHTML = wardrobe.map((item, i) => `
-    <div class="wardrobe-item" style="${item.img ? '' : `background:${item.hex}22; border-color:${item.hex}55;`}">
-      ${item.img ? `<img src="${item.img}" alt="${item.label}">` : `<span>${item.label}</span>`}
-      <div class="color-dot" style="background:${item.hex}" title="${item.label}"></div>
-      <div class="remove-x" data-i="${i}">✕</div>
-    </div>
-  `).join('');
+  shoppingSuggest.innerHTML = `
+    <div class="shopping-suggest-title">Чего не хватает в гардеробе</div>
+    ${missingTypes.map(type => `
+      <div class="shopping-row">
+        <span class="type-label">${typeLabel[type]}</span>
+        ${marketplaces.map(m => `<a class="shopping-link" href="${m.url(shopQuery[type])}" target="_blank" rel="noopener">${m.name} →</a>`).join('')}
+      </div>
+    `).join('')}
+  `;
 }
 
 function addItem(item) {
