@@ -16,6 +16,7 @@ const heroMatch = document.getElementById('heroMatch');
 const shoppingSuggest = document.getElementById('shoppingSuggest');
 const uploadTypePicker = document.getElementById('uploadTypePicker');
 const resultAdvice = document.getElementById('resultAdvice');
+const resultAlternatives = document.getElementById('resultAlternatives');
 
 const colorMap = {
   tangerine: { hex: '#eb7d00', name: 'Оранжевый' },
@@ -282,12 +283,80 @@ autoWeatherBtn.addEventListener('click', async () => {
   }, { timeout: 8000 });
 });
 
+// Рисует основной результат (совпадение вещей, заметка, совет). Вызывается
+// и при первом подборе, и при клике на альтернативный вариант ниже.
+function applyResult(items, score, occasion, weather) {
+  resultItems.innerHTML = items.map(item => `
+    <div class="result-item">
+      <div class="dot" style="background:${item.hex}"></div>
+      <span>${typeLabel[item.type] || 'Вещь'}: ${item.label}</span>
+    </div>
+  `).join('');
+
+  const matchNote = score >= 0.75
+    ? ' Цвета хорошо сочетаются между собой.'
+    : score < 0.5
+      ? ' Сочетание неидеальное — маловато вещей на выбор для этого повода.'
+      : '';
+  resultNote.textContent = `${occasionNotes[occasion]} ${weatherNotes[weather]}${matchNote}`;
+
+  const swap = OutfitLogic.suggestSwap(items, wardrobe, score);
+  if (swap) {
+    resultAdvice.className = 'result-advice suggest';
+    resultAdvice.innerHTML = `💡 <span>Совет: замени «${swap.fromLabel}» на «${swap.toLabel}» — сочетание станет лучше (${Math.round(swap.fromScore * 100)}% → ${Math.round(swap.toScore * 100)}%).</span>`;
+  } else {
+    resultAdvice.className = 'result-advice confirm';
+    resultAdvice.innerHTML = `✅ <span>Этот выбор хорош — можно ничего не менять.</span>`;
+  }
+  resultAdvice.hidden = false;
+}
+
+// Ниже основного лука показываем другие неплохие сочетания из топа — по
+// клику на карточку она становится основным результатом.
+function renderAlternatives(alternatives, occasion, weather) {
+  if (!alternatives || !alternatives.length) {
+    resultAlternatives.hidden = true;
+    return;
+  }
+  resultAlternatives.dataset.occasion = occasion;
+  resultAlternatives.dataset.weather = weather;
+  resultAlternatives.innerHTML = `
+    <div class="result-alternatives-title">Другие варианты</div>
+    ${alternatives.map((alt, i) => `
+      <div class="alt-card" data-alt-index="${i}">
+        <div class="alt-dots">${alt.items.map(item => `<span class="alt-dot" style="background:${item.hex}"></span>`).join('')}</div>
+        <span class="alt-labels">${alt.items.map(item => item.label).join(' + ')}</span>
+        <span class="alt-score">${Math.round(alt.score * 100)}%</span>
+      </div>
+    `).join('')}
+  `;
+  resultAlternatives.__altData = alternatives;
+  resultAlternatives.hidden = false;
+}
+
+resultAlternatives.addEventListener('click', (e) => {
+  const card = e.target.closest('.alt-card');
+  if (!card || !resultAlternatives.__altData) return;
+  const alt = resultAlternatives.__altData[Number(card.dataset.altIndex)];
+  if (!alt) return;
+
+  const occasion = resultAlternatives.dataset.occasion;
+  const weather = resultAlternatives.dataset.weather;
+
+  // выбранная альтернатива становится основным луком, а прежний основной —
+  // одной из альтернатив, чтобы к нему можно было вернуться
+  const rest = resultAlternatives.__altData.filter((_, i) => i !== Number(card.dataset.altIndex));
+  applyResult(alt.items, alt.score, occasion, weather);
+  renderAlternatives(rest, occasion, weather);
+});
+
 genBtn.addEventListener('click', () => {
   if (wardrobe.length < 2) {
     resultBox.classList.add('show');
     resultItems.innerHTML = '<div class="result-item"><span>Добавь хотя бы 2 вещи в гардероб, чтобы собрать лук 👕</span></div>';
     resultNote.textContent = '';
     resultAdvice.hidden = true;
+    resultAlternatives.hidden = true;
     return;
   }
 
@@ -295,37 +364,21 @@ genBtn.addEventListener('click', () => {
   const weather = document.querySelector('#weatherPicker .active').dataset.weather;
 
   const result = OutfitLogic.pickBestOutfit(wardrobe, { weather, occasion });
-  let pick = result ? result.items : wardrobe.slice(0, Math.min(3, wardrobe.length));
 
-  resultItems.innerHTML = pick.map(item => `
-    <div class="result-item">
-      <div class="dot" style="background:${item.hex}"></div>
-      <span>${typeLabel[item.type] || 'Вещь'}: ${item.label}</span>
-    </div>
-  `).join('');
-
-  const matchNote = result && result.score >= 0.75
-    ? ' Цвета хорошо сочетаются между собой.'
-    : result && result.score < 0.5
-      ? ' Сочетание неидеальное — маловато вещей на выбор для этого повода.'
-      : '';
-
-  resultNote.textContent = `${occasionNotes[occasion]} ${weatherNotes[weather]}${matchNote}`;
-
-  // Совет: либо предлагаем конкретную замену, которая заметно улучшит
-  // сочетаемость, либо явно подтверждаем, что менять ничего не нужно.
   if (result) {
-    const swap = OutfitLogic.suggestSwap(result.items, wardrobe, result.score);
-    if (swap) {
-      resultAdvice.className = 'result-advice suggest';
-      resultAdvice.innerHTML = `💡 <span>Совет: замени «${swap.fromLabel}» на «${swap.toLabel}» — сочетание станет лучше (${Math.round(swap.fromScore * 100)}% → ${Math.round(swap.toScore * 100)}%).</span>`;
-    } else {
-      resultAdvice.className = 'result-advice confirm';
-      resultAdvice.innerHTML = `✅ <span>Этот выбор хорош — можно ничего не менять.</span>`;
-    }
-    resultAdvice.hidden = false;
+    applyResult(result.items, result.score, occasion, weather);
+    renderAlternatives(result.alternatives, occasion, weather);
   } else {
+    const pick = wardrobe.slice(0, Math.min(3, wardrobe.length));
+    resultItems.innerHTML = pick.map(item => `
+      <div class="result-item">
+        <div class="dot" style="background:${item.hex}"></div>
+        <span>${typeLabel[item.type] || 'Вещь'}: ${item.label}</span>
+      </div>
+    `).join('');
+    resultNote.textContent = `${occasionNotes[occasion]} ${weatherNotes[weather]}`;
     resultAdvice.hidden = true;
+    resultAlternatives.hidden = true;
   }
 
   resultBox.classList.add('show');

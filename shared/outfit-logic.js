@@ -98,7 +98,10 @@
 
     combos.sort((a, b) => b.score - a.score);
     const topN = combos.slice(0, Math.max(1, opts.topN || 3));
-    const chosen = topN[Math.floor(Math.random() * topN.length)];
+    const chosenIdx = Math.floor(Math.random() * topN.length);
+    const chosen = topN[chosenIdx];
+    // остальные варианты из топа — показываем как альтернативы под основным луком
+    chosen.alternatives = topN.filter((_, i) => i !== chosenIdx);
     return chosen;
   }
 
