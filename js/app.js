@@ -254,10 +254,38 @@ function renderHeroLook(items, tempC, score) {
   heroMatch.textContent = `${Math.round(score * 100)}%`;
 }
 
+async function fetchTemperature(latitude, longitude) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('weather api error');
+  const data = await res.json();
+  return data.current.temperature_2m;
+}
+
+// Пересобирает hero-лук под новую температуру и синхронизирует кнопку
+// погоды в демке, чтобы всё на странице отражало один и тот же расчёт.
+function updateHeroForTemp(tempC) {
+  const weather = weatherBucket(tempC);
+  const occasion = document.querySelector('#occasionPicker .active').dataset.occ;
+  const result = OutfitLogic.pickBestOutfit(wardrobe, { weather, occasion });
+  if (!result) return false;
+  renderHeroLook(result.items, tempC, result.score);
+  document.querySelectorAll('#weatherPicker .tag-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.weather === weather);
+  });
+  return true;
+}
+
+const HERO_POLL_INTERVAL_MS = 10 * 60 * 1000; // раз в 10 минут — чаще реальная погода и не меняется
+const HERO_TEMP_CHANGE_THRESHOLD = 3; // °C — при таком сдвиге пересобираем лук
+
 // Автообновление карточки "Сегодняшний лук" в hero — только для вернувшихся
 // посетителей: нужен сохранённый гардероб (localStorage) и УЖЕ выданное
 // ранее разрешение на геолокацию. Разрешение мы сами не запрашиваем —
-// это было бы навязчиво для человека, который зашёл впервые.
+// это было бы навязчиво для человека, который зашёл впервые. Пока страница
+// открыта, раз в HERO_POLL_INTERVAL_MS проверяем погоду ещё раз и
+// пересобираем лук, если температура сдвинулась на HERO_TEMP_CHANGE_THRESHOLD
+// градусов и больше — так лук "живёт" вместе с погодой за окном.
 async function tryAutoHeroLook() {
   if (wardrobe.length < 2) return;
   if (!navigator.permissions || !navigator.geolocation) return;
@@ -270,21 +298,23 @@ async function tryAutoHeroLook() {
   }
   if (permissionState !== 'granted') return;
 
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    try {
-      const { latitude, longitude } = pos.coords;
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`;
-      const res = await fetch(url);
-      if (!res.ok) return;
-      const data = await res.json();
-      const tempC = data.current.temperature_2m;
-      const weather = weatherBucket(tempC);
-      const occasion = document.querySelector('#occasionPicker .active').dataset.occ;
+  navigator.geolocation.getCurrentPosition((pos) => {
+    const { latitude, longitude } = pos.coords;
+    let lastTemp = null;
 
-      const result = OutfitLogic.pickBestOutfit(wardrobe, { weather, occasion });
-      if (!result) return;
-      renderHeroLook(result.items, tempC, result.score);
-    } catch (e) { /* тихо оставляем статичный пример */ }
+    fetchTemperature(latitude, longitude)
+      .then(tempC => { if (updateHeroForTemp(tempC)) lastTemp = tempC; })
+      .catch(() => { /* тихо оставляем статичный пример */ });
+
+    setInterval(() => {
+      fetchTemperature(latitude, longitude)
+        .then(tempC => {
+          if (lastTemp === null || Math.abs(tempC - lastTemp) >= HERO_TEMP_CHANGE_THRESHOLD) {
+            if (updateHeroForTemp(tempC)) lastTemp = tempC;
+          }
+        })
+        .catch(() => { /* попробуем на следующем тике */ });
+    }, HERO_POLL_INTERVAL_MS);
   }, () => { /* доступ отозван между визитами — оставляем статичный пример */ }, { timeout: 8000 });
 }
 
