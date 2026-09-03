@@ -12,11 +12,11 @@ const autoWeatherBtn = document.getElementById('autoWeatherBtn');
 const weatherStatus = document.getElementById('weatherStatus');
 
 const colorMap = {
-  lime: { hex: '#d4ff3f', name: 'Лаймовый' },
-  white: { hex: '#f0f0e8', name: 'Белый' },
-  dark: { hex: '#3a3a52', name: 'Тёмно-синий' },
-  black: { hex: '#1c1c1c', name: 'Чёрный' },
-  olive: { hex: '#5c5c3a', name: 'Оливковый' }
+  tangerine: { hex: '#eb7d00', name: 'Оранжевый' },
+  vanilla: { hex: '#ebe3a7', name: 'Ванильный' },
+  green: { hex: '#2c5745', name: 'Зелёный' },
+  brown: { hex: '#2e2910', name: 'Тёмно-коричневый' },
+  rust: { hex: '#b8630a', name: 'Терракотовый' }
 };
 const typeLabel = { top: 'Верх', bottom: 'Низ', outer: 'Верхняя одежда', shoes: 'Обувь' };
 

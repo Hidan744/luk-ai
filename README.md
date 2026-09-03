@@ -23,9 +23,10 @@ luk-ai/
 
 ## Дизайн-система (css/style.css, :root)
 
-- `--black` / `--black-soft` / `--panel` — фоны
-- `--lime` — акцентный кислотно-лаймовый (бренд-цвет)
-- `--white` / `--grey` — текст
+- `--black` (#141009) / `--black-soft` / `--panel` (#2e2910, Drab Dark Brown) — фоны
+- `--accent` (#eb7d00, Tangerine) / `--accent-dim` — основной акцентный цвет (CTA, кнопки, цифры)
+- `--accent-2` (#2c5745, Brunswick Green) — вторичный акцент
+- `--white` (#ebe3a7, Vanilla) / `--grey` — текст
 - `--line` — границы/разделители
 
 ## Что работает по-настоящему
