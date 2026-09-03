@@ -131,5 +131,77 @@
     return best;
   }
 
-  return { hexToHsl, isNeutral, pairScore, outfitScore, pickBestOutfit, suggestSwap };
+  const TYPE_NAMES_RU = { top: 'верх', bottom: 'низ', outer: 'верхняя одежда', shoes: 'обувь' };
+
+  /**
+   * Реальный анализ ВСЕГО гардероба (а не одного собранного лука):
+   * чего не хватает по типам, есть ли хоть одна нейтральная вещь, нет ли
+   * явного перекоса ("4 верха и 1 низ") или дублирующих по цвету вещей,
+   * и какая в среднем сочетаемость по гардеробу. Возвращает список
+   * находок (findings) вместо дежурного "всё ок".
+   */
+  function analyzeWardrobe(wardrobe) {
+    if (!wardrobe || wardrobe.length < 2) {
+      return { findings: [{ type: 'info', text: 'Добавь хотя бы 2 вещи, чтобы получить анализ гардероба.' }], avgScore: null, counts: {} };
+    }
+
+    const types = Object.keys(TYPE_NAMES_RU);
+    const counts = {};
+    types.forEach(t => { counts[t] = wardrobe.filter(i => i.type === t).length; });
+    const findings = [];
+
+    const missing = types.filter(t => counts[t] === 0);
+    if (missing.length) {
+      findings.push({ type: 'warn', text: `В гардеробе совсем нет: ${missing.map(t => TYPE_NAMES_RU[t]).join(', ')} — без этого ни один образ не будет полным.` });
+    }
+
+    const hasNeutral = wardrobe.some(i => isNeutral(hexToHsl(i.hex)));
+    if (!hasNeutral) {
+      findings.push({ type: 'warn', text: 'В гардеробе нет ни одной нейтральной вещи (чёрной/белой/серой/бежевой) — такие вещи сочетаются почти со всем, без них образам сложнее выглядеть собранными.' });
+    }
+
+    const presentCounts = types.map(t => counts[t]).filter(c => c > 0);
+    const maxCount = presentCounts.length ? Math.max(...presentCounts) : 0;
+    types.forEach(t => {
+      if (counts[t] === 1 && maxCount >= 3) {
+        findings.push({ type: 'tip', text: `Только одна вещь в категории «${TYPE_NAMES_RU[t]}» — почти все образы будут повторять её. Стоит добавить ещё.` });
+      }
+    });
+
+    types.forEach(t => {
+      const items = wardrobe.filter(i => i.type === t);
+      for (let i = 0; i < items.length; i++) {
+        for (let j = i + 1; j < items.length; j++) {
+          const a = hexToHsl(items[i].hex), b = hexToHsl(items[j].hex);
+          let diff = Math.abs(a.h - b.h);
+          if (diff > 180) diff = 360 - diff;
+          if (!isNeutral(a) && !isNeutral(b) && diff < 12 && Math.abs(a.l - b.l) < 0.1) {
+            findings.push({ type: 'tip', text: `«${items[i].label}» и «${items[j].label}» почти одного цвета — по сути дублируют друг друга в подборе.` });
+          }
+        }
+      }
+    });
+
+    let total = 0, pairs = 0;
+    for (let i = 0; i < wardrobe.length; i++) {
+      for (let j = i + 1; j < wardrobe.length; j++) {
+        if (wardrobe[i].type === wardrobe[j].type) continue;
+        total += pairScore(wardrobe[i].hex, wardrobe[j].hex);
+        pairs++;
+      }
+    }
+    const avgScore = pairs ? total / pairs : null;
+
+    if (avgScore !== null && avgScore < 0.55 && !findings.length) {
+      findings.push({ type: 'warn', text: 'В среднем вещи гардероба сочетаются слабо — добавь более нейтральные вещи (чёрный/белый/серый/бежевый), они выручат почти в любом сочетании.' });
+    }
+
+    if (!findings.length) {
+      findings.push({ type: 'ok', text: `Гардероб сбалансирован — вещи хорошо сочетаются между собой (в среднем ${Math.round((avgScore || 0.8) * 100)}%).` });
+    }
+
+    return { findings, avgScore, counts };
+  }
+
+  return { hexToHsl, isNeutral, pairScore, outfitScore, pickBestOutfit, suggestSwap, analyzeWardrobe };
 });

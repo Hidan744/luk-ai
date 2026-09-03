@@ -14,6 +14,7 @@ const heroLookCard = document.getElementById('heroLookCard');
 const heroTemp = document.getElementById('heroTemp');
 const heroMatch = document.getElementById('heroMatch');
 const shoppingSuggest = document.getElementById('shoppingSuggest');
+const wardrobeAnalysis = document.getElementById('wardrobeAnalysis');
 const uploadTypePicker = document.getElementById('uploadTypePicker');
 const resultAdvice = document.getElementById('resultAdvice');
 const resultAlternatives = document.getElementById('resultAlternatives');
@@ -81,7 +82,30 @@ function renderWardrobe() {
       </div>
     `).join('');
   }
+  renderWardrobeAnalysis();
   renderShoppingSuggest();
+}
+
+const findingIcon = { warn: '⚠️', tip: '💡', ok: '✅', info: 'ℹ️' };
+
+// Реальный разбор ВСЕГО гардероба (не одного лука): чего не хватает,
+// нет ли перекоса по количеству вещей, не дублируют ли вещи друг друга по
+// цвету, какая в среднем сочетаемость — вместо дежурного "всё ок".
+function renderWardrobeAnalysis() {
+  if (wardrobe.length === 0) {
+    wardrobeAnalysis.innerHTML = '';
+    return;
+  }
+  const analysis = OutfitLogic.analyzeWardrobe(wardrobe);
+  wardrobeAnalysis.innerHTML = `
+    <div class="wardrobe-analysis-title">Анализ гардероба</div>
+    ${analysis.findings.map(f => `
+      <div class="analysis-finding ${f.type}">
+        <span>${findingIcon[f.type] || ''}</span>
+        <span>${f.text}</span>
+      </div>
+    `).join('')}
+  `;
 }
 
 // Настоящие рабочие ссылки на поиск по маркетплейсам (без партнёрского API,

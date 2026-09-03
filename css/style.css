@@ -200,6 +200,20 @@
     border:1.5px solid rgba(255,255,255,.5);
   }
 
+  .wardrobe-analysis{margin-top:18px; display:flex; flex-direction:column; gap:8px;}
+  .wardrobe-analysis-title{
+    font-size:11.5px; color:var(--grey); text-transform:uppercase; letter-spacing:.08em;
+    margin-bottom:2px; font-weight:700;
+  }
+  .analysis-finding{
+    display:flex; align-items:flex-start; gap:9px; padding:10px 12px; border-radius:10px;
+    font-size:12.5px; line-height:1.5; border:1px solid var(--line);
+  }
+  .analysis-finding.warn{background:rgba(235,125,0,0.08); border-color:var(--accent);}
+  .analysis-finding.tip{background:var(--black-soft);}
+  .analysis-finding.ok{background:rgba(44,87,69,0.3); border-color:var(--accent-2);}
+  .analysis-finding.info{background:var(--black-soft); color:var(--grey);}
+
   .shopping-suggest{margin-top:18px;}
   .shopping-suggest-title{
     font-size:11.5px; color:var(--grey); text-transform:uppercase; letter-spacing:.08em;
