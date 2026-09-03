@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ЛУК — AI-стилист для твоего гардероба</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700;900&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="noise"></div>
+
+<nav>
+  <div class="logo">ЛУК<span>.AI</span></div>
+  <div class="nav-links">
+    <a href="#how">Как работает</a>
+    <a href="#demo">Демо</a>
+    <a href="#pricing">Тарифы</a>
+  </div>
+  <a href="#demo" class="nav-cta">Попробовать</a>
+</nav>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="kicker">AI-стилист · запуск скоро</div>
+      <h1>ТВОЙ<br><span class="fill-lime">ГАРДЕРОБ,</span><br><span class="outline">ОДИН ЛУК</span></h1>
+      <p class="hero-sub">Фоткаешь вещи — ИИ собирает образы под погоду, повод и настроение. Больше не стоишь у шкафа с мыслью «нечего надеть».</p>
+      <div class="hero-actions">
+        <a href="#demo" class="btn-primary">Собрать образ →</a>
+        <a href="#how" class="btn-ghost">Как это работает</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <span class="tag">СЕГОДНЯШНИЙ ЛУК</span>
+      <div class="look-card">
+        <div class="look-row">
+          <div class="swatch" style="background:linear-gradient(160deg,#3a3a34,#1a1a1a);">Куртка</div>
+          <div class="swatch" style="background:linear-gradient(160deg,#d4ff3f,#9ecc1f); color:#0a0a0a;">Свитер</div>
+        </div>
+        <div class="look-row">
+          <div class="swatch" style="background:linear-gradient(160deg,#2a2a26,#141414);">Джинсы</div>
+          <div class="swatch" style="background:linear-gradient(160deg,#4a4a42,#2a2a26);">Кроссовки</div>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><b>+18°</b><span>погода учтена</span></div>
+        <div class="stat"><b>92%</b><span>совпадение стиля</span></div>
+        <div class="stat"><b>3с</b><span>на подбор</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="marquee">
+  <div class="marquee-track">
+    <span>ПОДБОР ПО ПОГОДЕ</span>
+    <span>ЦИФРОВОЙ ГАРДЕРОБ</span>
+    <span>СТИЛЬ ЗА СЕКУНДЫ</span>
+    <span>ЛИЧНЫЙ СТИЛИСТ 24/7</span>
+    <span>ПОДБОР ПО ПОГОДЕ</span>
+    <span>ЦИФРОВОЙ ГАРДЕРОБ</span>
+    <span>СТИЛЬ ЗА СЕКУНДЫ</span>
+    <span>ЛИЧНЫЙ СТИЛИСТ 24/7</span>
+  </div>
+</div>
+
+<section id="how">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Как это работает</div>
+      <h2>Три шага до идеального образа</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <h3>Загружаешь вещи</h3>
+        <p>Фоткаешь всё, что есть в шкафу. ИИ сам определяет тип вещи, цвет и сезонность — руками ничего размечать не нужно.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <h3>Выбираешь повод</h3>
+        <p>Работа, свидание, прогулка, важная встреча — говоришь боту, куда собираешься, и он учитывает ещё и погоду за окном.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <h3>Получаешь лук</h3>
+        <p>Готовое сочетание вещей из твоего же гардероба — по цвету и стилю. Не подошло — попроси другой вариант.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="demo">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Живая демка</div>
+      <h2>Собери гардероб и получи лук прямо тут</h2>
+      <p>Это рабочий прототип: добавь пару вещей, выбери повод — и посмотри, как алгоритм подбирает сочетания. Всё происходит у тебя в браузере.</p>
+    </div>
+
+    <div class="demo-panel">
+      <div class="demo-grid">
+        <div class="demo-col">
+          <h3>1. Твой гардероб</h3>
+          <label class="upload-zone" id="uploadZone">
+            <div class="icon">📷</div>
+            <p><strong>Загрузить фото вещи</strong><br>или выбери тип ниже, чтобы добавить быстро</p>
+            <input type="file" id="fileInput" accept="image/*">
+          </label>
+
+          <div class="tag-picker" id="quickAdd">
+            <button class="tag-btn" data-type="top" data-color="lime">+ Свитер</button>
+            <button class="tag-btn" data-type="top" data-color="white">+ Рубашка</button>
+            <button class="tag-btn" data-type="bottom" data-color="dark">+ Джинсы</button>
+            <button class="tag-btn" data-type="bottom" data-color="black">+ Брюки</button>
+            <button class="tag-btn" data-type="outer" data-color="olive">+ Куртка</button>
+            <button class="tag-btn" data-type="shoes" data-color="white">+ Кроссовки</button>
+          </div>
+
+          <div class="wardrobe-grid" id="wardrobeGrid">
+            <div class="wardrobe-empty">Гардероб пуст — добавь пару вещей выше</div>
+          </div>
+        </div>
+
+        <div class="demo-col">
+          <h3>2. Повод и погода</h3>
+          <div class="occasion-select" id="occasionPicker">
+            <button class="tag-btn active" data-occ="work">💼 Работа</button>
+            <button class="tag-btn" data-occ="date">🌙 Свидание</button>
+            <button class="tag-btn" data-occ="walk">🚶 Прогулка</button>
+            <button class="tag-btn" data-occ="event">✨ Важная встреча</button>
+          </div>
+          <div class="occasion-select" id="weatherPicker">
+            <button class="tag-btn active" data-weather="cold">❄️ Холодно</button>
+            <button class="tag-btn" data-weather="mild">🌤 Прохладно</button>
+            <button class="tag-btn" data-weather="warm">☀️ Тепло</button>
+          </div>
+
+          <button class="gen-btn" id="genBtn">Подобрать образ</button>
+
+          <div class="result-box" id="resultBox">
+            <div class="result-title">ГОТОВЫЙ ЛУК</div>
+            <div class="result-items" id="resultItems"></div>
+            <p class="result-note" id="resultNote"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Тарифы</div>
+      <h2>Начни бесплатно, расти по мере надобности</h2>
+    </div>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <h4>Бесплатно</h4>
+        <div class="price-amount">0₽</div>
+        <ul class="price-list">
+          <li>До 10 вещей в гардеробе</li>
+          <li>5 подборов образа в месяц</li>
+          <li>Базовый учёт погоды</li>
+        </ul>
+        <a href="#demo" class="price-btn">Попробовать</a>
+      </div>
+      <div class="price-card featured">
+        <span class="price-badge">ПОПУЛЯРНЫЙ</span>
+        <h4>Стиль+</h4>
+        <div class="price-amount">399₽<span>/мес</span></div>
+        <ul class="price-list">
+          <li>Безлимитный гардероб</li>
+          <li>Безлимит подборов образа</li>
+          <li>Погода + повод + история луков</li>
+          <li>Рекомендации что докупить</li>
+        </ul>
+        <a href="#demo" class="price-btn">Оформить</a>
+      </div>
+      <div class="price-card">
+        <h4>Разбор гардероба</h4>
+        <div class="price-amount">990₽</div>
+        <ul class="price-list">
+          <li>Разовый полный анализ гардероба</li>
+          <li>10 готовых образов на все случаи</li>
+          <li>Список вещей, которых не хватает</li>
+        </ul>
+        <a href="#demo" class="price-btn">Заказать</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="cta-section">
+    <h2>Хватит стоять у шкафа</h2>
+    <p>Первые 100 пользователей получают тариф Стиль+ бесплатно на месяц.</p>
+    <a href="#demo" class="btn-primary">Начать бесплатно →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="logo">ЛУК<span style="color:var(--lime)">.AI</span></div>
+  <p>© 2026 ЛУК.AI — персональный AI-стилист</p>
+</footer>
+
+<script src="js/app.js"></script>
+
+</body>
+</html>
